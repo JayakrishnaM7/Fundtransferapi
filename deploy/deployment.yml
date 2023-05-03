@@ -1,0 +1,80 @@
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: productservice
+  namespace: mavipoc-ps
+  labels:
+    app: productservice
+    version: v1
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: productservice
+      version: v1
+  template:
+    metadata:
+      labels:
+        app: productservice
+        version: v1
+    spec:
+      hostNetwork: false
+      nodeName: ip-10-0-143-125.ap-southeast-1.compute.internal
+      containers:
+      - name: productservice-container
+        image: 18.136.58.210:8082/productservice:1.0.0-SNAPSHOT
+        imagePullPolicy: Always
+        ports:
+        - protocol: TCP
+          containerPort: 8080
+        env:
+        - name: BUILD_NUMBER
+          value: "${BUILD_NUMBER}"
+        - name: spring.datasource.username
+          valueFrom:
+            secretKeyRef:
+              name: username
+              key: spring.datasource.username
+        - name: spring.datasource.password
+          valueFrom:
+            secretKeyRef:
+              name: password
+              key: spring.datasource.password
+      imagePullSecrets:
+      - name: docker-secret
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: productservice
+  namespace: mavipoc-ps
+  labels:
+    app: productservice
+    service: productservice
+spec:
+  ports:
+  - port: 8080
+    name: http
+  selector:
+    app: productservice
+---
+kind: Route
+apiVersion: route.openshift.io/v1
+metadata:
+  name: productservice
+  namespace: mavipoc-ps
+  labels:
+    app: productservice
+    service: productservice
+spec:
+  host: productservice-mavipoc-ps.apps.mavipoc-pb.duh8.p1.openshiftapps.com
+  to:
+    kind: Service
+    name: productservice
+    weight: 100
+  port:
+    targetPort: http
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: None
+  wildcardPolicy: None
